@@ -42,10 +42,10 @@ const GlobalArgsSchema = z.object({
       ]).nullable(),
     }),
   ).describe(
-    "Initial values. Supply every required field. Supports String, LongText, Boolean, Number, Date, ValueSelect, MultiValueSelect, Url and User fields. Requires Project custom fields availability. Discover definitions using customField.list with hiringProcessMetadata:read; User discovery retains organization:read.",
+    "Initial values. Supply every required field. Supports String, LongText, Boolean, Number, Date, ValueSelect, MultiValueSelect, Url and User fields. Requires Project custom fields availability. Discover definitions using customField.list with hiringProcessMetadata:read; User discovery retains organization:read. Sent by create only; project.update does not accept it.",
   ).optional(),
   confidential: z.boolean().describe(
-    "Whether the project is confidential. Defaults to false. Requires confidential project availability.",
+    "Whether the project is confidential. Defaults to false. Requires confidential project availability. Sent by create only; project.update does not accept it.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -126,7 +126,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby project. Registered at `@keeb/ashby/sourcing/project`. */
 export const model = {
   type: "@keeb/ashby/sourcing/project",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

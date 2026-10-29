@@ -17,7 +17,7 @@ import { action, create, listAll, update } from "./_lib/ashby.ts";
 
 const GlobalArgsSchema = z.object({
   applicationId: z.string().describe(
-    "The id of the application for this interview schedule",
+    "The id of the application for this interview schedule. Sent by create only; interviewSchedule.update does not accept it.",
   ).optional(),
   interviewEvents: z.array(z.object({
     startTime: z.string(),
@@ -30,8 +30,9 @@ const GlobalArgsSchema = z.object({
     ),
     extraData: z.record(z.string(), z.string()).nullable().optional(),
     interviewId: z.string().nullable().optional(),
-  })).describe("The list of events that make up this interview schedule")
-    .optional(),
+  })).describe(
+    "The list of events that make up this interview schedule. Sent by create only; interviewSchedule.update does not accept it.",
+  ).optional(),
   interviewEvent: z.union([
     z.object({
       startTime: z.string(),
@@ -60,16 +61,16 @@ const GlobalArgsSchema = z.object({
       interviewEventId: z.string().nullable().optional(),
     })),
   ]).nullable().describe(
-    "An event (or array of events) on the interview schedule to create or update. To update an event, its `interviewEventId` must be included in the request.",
+    "An event (or array of events) on the interview schedule to create or update. To update an event, its `interviewEventId` must be included in the request. Sent by update only; interviewSchedule.create does not accept it.",
   ).optional(),
   interviewEventIdToCancel: z.union([
     z.string(),
     z.array(z.string().nullable()),
   ]).nullable().describe(
-    "The id (or array of ids) of interview events to cancel.",
+    "The id (or array of ids) of interview events to cancel. Sent by update only; interviewSchedule.create does not accept it.",
   ).optional(),
   allowFeedbackDeletion: z.boolean().nullable().describe(
-    "By default, events with submitted feedback cannot be cancelled because cancellation deletes the associated feedback. Pass `true` to allow cancelling events with submitted feedback.",
+    "By default, events with submitted feedback cannot be cancelled because cancellation deletes the associated feedback. Pass `true` to allow cancelling events with submitted feedback. Sent by update only; interviewSchedule.create does not accept it.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -177,7 +178,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby interview schedule. Registered at `@keeb/ashby/interviews/interview-schedule`. */
 export const model = {
   type: "@keeb/ashby/interviews/interview-schedule",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

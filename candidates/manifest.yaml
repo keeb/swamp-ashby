@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with: deno task generate
 manifestVersion: 1
 name: "@keeb/ashby/candidates"
-version: "2026.10.29.1"
+version: "2026.10.29.2"
 description: "Ashby candidates and applications: candidates, tags, applications and their history, feedback, application forms, referrals, assessments and file uploads"
 repository: "https://github.com/keeb/swamp-ashby"
 license: MIT
@@ -13,7 +13,8 @@ labels:
   - applications
   - referrals
 releaseNotes: |
-  - Added: candidate, candidate_tag, application, application_feedback, application_feedback_request, application_form, application_hiring_team_role, referral, referral_form, assessment, file
+  - Updated: candidate, application
+  - sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so
 models:
   - application.ts
   - application_feedback.ts

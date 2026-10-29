@@ -46,14 +46,17 @@ const GlobalArgsSchema = z.object({
     "takeHomeAssignmentCompleted",
     "takeHomeAssignmentSubmitted",
     "signatureRequestUpdate",
-  ]).describe("The type of webhook to create").optional(),
+  ]).describe(
+    "The type of webhook to create. Sent by create only; webhook.update does not accept it.",
+  ).optional(),
   requestUrl: z.string().describe("The URL the webhook will send requests to")
     .optional(),
   secretToken: z.string().meta({ sensitive: true }).describe(
     "The secret token used to sign the webhook request. See our documentation here for more information.",
   ).optional(),
-  enabled: z.boolean().describe("Whether or not the webhook setting is enabled")
-    .optional(),
+  enabled: z.boolean().describe(
+    "Whether or not the webhook setting is enabled. Sent by update only; webhook.create does not accept it.",
+  ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -115,7 +118,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby webhook. Registered at `@keeb/ashby/organization/webhook`. */
 export const model = {
   type: "@keeb/ashby/organization/webhook",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

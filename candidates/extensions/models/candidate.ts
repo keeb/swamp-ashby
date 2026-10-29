@@ -39,10 +39,10 @@ const GlobalArgsSchema = z.object({
     "Url to the candidate's Github profile. Must be a valid Url.",
   ).optional(),
   website: z.string().nullable().describe(
-    "Url of the candidate's website. Must be a valid Url.",
+    "Url of the candidate's website. Must be a valid Url. Sent by create only; candidate.update does not accept it.",
   ).optional(),
   alternateEmailAddresses: z.array(z.string()).nullable().describe(
-    "Array of alternate email addresses to add to the candidate's profile",
+    "Array of alternate email addresses to add to the candidate's profile. Sent by create only; candidate.update does not accept it.",
   ).optional(),
   sourceId: z.string().nullable().describe(
     "The source to set on the candidate being created",
@@ -59,17 +59,17 @@ const GlobalArgsSchema = z.object({
     "An ISO date string to set the candidate's `createdAt` timestamp. When this value isn't provided, the `createdAt` timestamp defaults to the time the call was made.",
   ).optional(),
   websiteUrl: z.string().nullable().describe(
-    "Url of the candidate's website. Must be a valid Url.",
+    "Url of the candidate's website. Must be a valid Url. Sent by update only; candidate.create does not accept it.",
   ).optional(),
   alternateEmail: z.string().nullable().describe(
-    "An alternate email address to add to the candidate's profile",
+    "An alternate email address to add to the candidate's profile. Sent by update only; candidate.create does not accept it.",
   ).optional(),
   socialLinks: z.array(z.object({ type: z.string(), url: z.string() }))
     .nullable().describe(
-      "An array of social links to set on the candidate. This value replaces existing socialLinks that have been set on the candidate. If this value is submitted along with linkedInUrl, gitHubUrl or websiteUrl fields, those values will be ignored.",
+      "An array of social links to set on the candidate. This value replaces existing socialLinks that have been set on the candidate. If this value is submitted along with linkedInUrl, gitHubUrl or websiteUrl fields, those values will be ignored. Sent by update only; candidate.create does not accept it.",
     ).optional(),
   sendNotifications: z.boolean().nullable().describe(
-    "Whether or not users who are subscribed to the candidate should be notified that the candidate was updated. Default is true.",
+    "Whether or not users who are subscribed to the candidate should be notified that the candidate was updated. Default is true. Sent by update only; candidate.create does not accept it.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -166,7 +166,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby candidate. Registered at `@keeb/ashby/candidates/candidate`. */
 export const model = {
   type: "@keeb/ashby/candidates/candidate",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

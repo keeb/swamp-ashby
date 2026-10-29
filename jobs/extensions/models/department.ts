@@ -28,7 +28,7 @@ const GlobalArgsSchema = z.object({
     "An alternate candidate-facing name for this department that will be used on Ashby job boards",
   ).optional(),
   parentId: z.string().nullable().describe(
-    "The id of the department's parent department",
+    "The id of the department's parent department. Sent by create only; department.update does not accept it.",
   ).optional(),
   extraData: z.record(z.string(), z.string()).nullable().describe(
     "Key-value pairs for your own use and reference. Keys must be at most 100 characters, values at most 512 characters, and total size less than 1kb.",
@@ -97,7 +97,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby department. Registered at `@keeb/ashby/jobs/department`. */
 export const model = {
   type: "@keeb/ashby/jobs/department",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

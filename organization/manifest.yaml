@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with: deno task generate
 manifestVersion: 1
 name: "@keeb/ashby/organization"
-version: "2026.10.29.1"
+version: "2026.10.29.2"
 description: "Ashby organization: users and interviewer settings, brands, custom fields, webhooks, reports, the audit log, API key info and API versions"
 repository: "https://github.com/keeb/swamp-ashby"
 license: MIT
@@ -15,7 +15,8 @@ labels:
   - reports
   - admin
 releaseNotes: |
-  - Added: user, brand, custom_field, webhook, report, audit_log, api_key, version
+  - Updated: webhook
+  - sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so
 models:
   - api_key.ts
   - audit_log.ts

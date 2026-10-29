@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with: deno task generate
 manifestVersion: 1
 name: "@keeb/ashby/sourcing"
-version: "2026.10.29.1"
+version: "2026.10.29.2"
 description: "Ashby sourcing: projects, outreach sequences and templates, sources and tracking links, email senders, the email sync blocklist, communication templates and archive reasons"
 repository: "https://github.com/keeb/swamp-ashby"
 license: MIT
@@ -14,7 +14,8 @@ labels:
   - sequences
   - projects
 releaseNotes: |
-  - Added: project, sequence, sequence_template, source, source_tracking_link, email_sender, email_sync_blocked_address, communication_template, archive_reason
+  - Updated: project
+  - sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so
 models:
   - archive_reason.ts
   - communication_template.ts

@@ -34,13 +34,88 @@ const licenseText = await Deno.readTextFile(`${root}LICENSE.txt`);
 const EXTENSION_PREFIX = "@keeb/ashby";
 const REPOSITORY = "https://github.com/keeb/swamp-ashby";
 
-const version = Deno.args[0] ??
-  (() => {
-    const d = new Date();
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${
-      String(d.getDate()).padStart(2, "0")
-    }.1`;
-  })();
+// ---------------------------------------------------------------------------
+// Versioning, as the official generators do it: a model's version (and its
+// package's) moves only when its generated content changes, and each move
+// adds an `upgrades` entry so stored state carries forward.
+
+const TODAY = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${
+    String(d.getDate()).padStart(2, "0")
+  }`;
+})();
+
+/** Why this regeneration changed things; recorded on each new upgrade entry. */
+const CHANGE_NOTE = Deno.env.get("ASHBY_CHANGE_NOTE") ??
+  "Regenerated from the Ashby spec; no stored-state schema changes";
+
+const VERSION_PLACEHOLDER = "__VERSION__";
+
+/** The next CalVer after `existing`: bump the micro today, else start today at 1. */
+function nextVersion(existing: string | undefined): string {
+  if (existing?.startsWith(`${TODAY}.`)) {
+    return `${TODAY}.${Number(existing.split(".")[3]) + 1}`;
+  }
+  return `${TODAY}.1`;
+}
+
+/**
+ * True when two sources differ only in formatting or their own version.
+ * Generated text is compared against `deno fmt` output, so whitespace and
+ * the trailing commas fmt adds are not changes.
+ */
+function sameContent(a: string, b: string): boolean {
+  const norm = (s: string) =>
+    s.replace(/\bversion: "[^"]*"/, `version: "${VERSION_PLACEHOLDER}"`)
+      .replace(/[\s,]+/g, "");
+  return norm(a) === norm(b);
+}
+
+interface Upgrade {
+  toVersion: string;
+  description: string;
+}
+
+/** The upgrade entries already recorded in a generated model. */
+function parseUpgrades(source: string): Upgrade[] {
+  return [
+    ...source.matchAll(
+      /toVersion: "([^"]+)",\s*description:\s*("(?:[^"\\]|\\.)*")/g,
+    ),
+  ].map((m) => ({ toVersion: m[1], description: JSON.parse(m[2]) }));
+}
+
+/**
+ * Formats TypeScript the way the shipped files are formatted, so a candidate
+ * can be compared with what is on disk. `deno fmt` decides some structure
+ * (it braces a long single-statement `if` it has to wrap), so whitespace
+ * normalisation alone is not enough.
+ */
+async function formatTs(source: string, ext = "ts"): Promise<string> {
+  const proc = new Deno.Command(Deno.execPath(), {
+    args: ["fmt", `--ext=${ext}`, "-"],
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+  const writer = proc.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(source));
+  await writer.close();
+  const { code, stdout, stderr } = await proc.output();
+  if (code !== 0) {
+    throw new Error(`deno fmt failed: ${new TextDecoder().decode(stderr)}`);
+  }
+  return new TextDecoder().decode(stdout);
+}
+
+async function readIfExists(path: string): Promise<string | undefined> {
+  try {
+    return await Deno.readTextFile(path);
+  } catch {
+    return undefined;
+  }
+}
 
 /** Registry limits on a package's listing (swamp-club extension-content.ts). */
 const LIMITS = {
@@ -364,11 +439,25 @@ function objectZod(s: Schema, stack: string[], depth: number): string {
   return `z.object({ ${fields.join(", ")} })`;
 }
 
-/** One argument line: type, sensitivity, optionality, description. */
-function argLine(name: string, s: Schema, required: boolean): string {
+/**
+ * One argument line: type, sensitivity, optionality, description. `note` is
+ * appended to the spec's description (which is capped first, so the note
+ * always survives) to say which methods send a global argument.
+ */
+function argLine(
+  name: string,
+  s: Schema,
+  required: boolean,
+  note?: string,
+): string {
   let out = `${quoteKey(name)}: ${zod(s)}`;
   if (SENSITIVE_FIELD.test(name)) out += ".meta({ sensitive: true })";
-  const desc = cap(clean(s.description ?? deref(s).description));
+  const base = cap(
+    clean(s.description ?? deref(s).description),
+    note ? 380 : 450,
+  );
+  const lead = base && !/[.!?)]$/.test(base) ? `${base}.` : base;
+  const desc = note ? `${lead}${lead ? " " : ""}${note}` : base;
   if (desc) out += `.describe(${JSON.stringify(desc)})`;
   if (!required) out += ".optional()";
   return out;
@@ -481,7 +570,32 @@ interface Resource {
   deleteIdField?: string;
   namingField?: string;
   globals: Array<[string, Schema]>;
+  /**
+   * Global arguments the read endpoint also accepts. `sync` sends them, so a
+   * read parameter configured on the model (jobPosting's
+   * includeUnpublishedJobPostings) applies to sync as it does to update.
+   */
+  syncForward: string[];
   stateSchema?: Schema;
+}
+
+/** Which methods send a global argument, when it is not every one that writes. */
+function globalNote(r: Resource, name: string): string | undefined {
+  const inCreate = !!r.create && name in r.create.props;
+  const inUpdate = !!r.update && name in r.update.props;
+  const parts: string[] = [];
+  if (r.create && r.update && inCreate && !inUpdate) {
+    parts.push(
+      `Sent by create only; ${r.update.operation} does not accept it.`,
+    );
+  }
+  if (r.create && r.update && inUpdate && !inCreate) {
+    parts.push(
+      `Sent by update only; ${r.create.operation} does not accept it.`,
+    );
+  }
+  if (r.syncForward.includes(name)) parts.push("Also sent by sync.");
+  return parts.length ? parts.join(" ") : undefined;
 }
 
 function idField(
@@ -541,6 +655,7 @@ function buildResource(prefix: string, eps: Endpoint[]): Resource {
     display: words(prefix),
     actions: [],
     globals: [],
+    syncForward: [],
   };
   for (const ep of eps) {
     if (ep.action === "create") r.create = ep;
@@ -572,6 +687,11 @@ function buildResource(prefix: string, eps: Endpoint[]): Resource {
     }
   }
   r.globals = [...globals];
+  if (r.read && r.readIdField) {
+    r.syncForward = Object.keys(r.read.props).filter((k) =>
+      k !== r.readIdField && globals.has(k)
+    );
+  }
   r.namingField = globals.has("name")
     ? "name"
     : globals.has("title")
@@ -693,6 +813,8 @@ interface EmittedMethod {
 
 function generateModel(
   r: Resource,
+  version: string,
+  upgrades: Upgrade[],
 ): { source: string; methods: EmittedMethod[] } {
   const type = `${EXTENSION_PREFIX}/${r.domain}/${r.slug}`;
   const lookupName = `${r.slugId}_lookup`;
@@ -723,7 +845,9 @@ function generateModel(
 
   // GlobalArgsSchema: desired-state attributes, then the connection block.
   out.push(`const GlobalArgsSchema = z.object({`);
-  for (const [k, s] of r.globals) out.push(`  ${argLine(k, s, false)},`);
+  for (const [k, s] of r.globals) {
+    out.push(`  ${argLine(k, s, false, globalNote(r, k))},`);
+  }
   out.push(
     `  apiKey: z.string().meta({ sensitive: true }).describe("Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),`,
   );
@@ -814,6 +938,19 @@ function generateModel(
   out.push(`export const model = {`);
   out.push(`  type: "${type}",`);
   out.push(`  version: "${version}",`);
+  if (upgrades.length > 0) {
+    out.push(`  upgrades: [`);
+    for (const u of upgrades) {
+      out.push(`    {`);
+      out.push(`      toVersion: ${JSON.stringify(u.toVersion)},`);
+      out.push(`      description: ${JSON.stringify(u.description)},`);
+      out.push(
+        `      upgradeAttributes: (old: Record<string, unknown>) => old,`,
+      );
+      out.push(`    },`);
+    }
+    out.push(`  ],`);
+  }
   out.push(`  globalArguments: GlobalArgsSchema,`);
   out.push(`  inputsSchema: InputsSchema,`);
   out.push(`  resources: {`);
@@ -1046,7 +1183,11 @@ function generateModel(
     const a = emitMethod(
       out,
       "sync",
-      `Sync the stored ${r.display} from Ashby (${ep.operation}); records status not_found when it is gone.`,
+      `Sync the stored ${r.display} from Ashby (${ep.operation}); records status not_found when it is gone.${
+        r.syncForward.length
+          ? ` Sends the model's ${r.syncForward.join(", ")} too.`
+          : ""
+      }`,
       [],
       [
         instanceName,
@@ -1055,9 +1196,29 @@ function generateModel(
           emitStoredLookup(l);
           return l;
         })(),
-        `        const result = await tryRead(${
-          JSON.stringify(ep.operation)
-        }, { ${JSON.stringify(r.readIdField)}: existing.id }, opts);`,
+        // A read parameter set on the model must reach sync's read, or the
+        // read misses what it was configured to see and sync overwrites the
+        // state with not_found (keeb/swamp-ashby#1). Without any, the body
+        // stays inline so unaffected models regenerate byte-identical.
+        ...(r.syncForward.length === 0
+          ? [
+            `        const result = await tryRead(${
+              JSON.stringify(ep.operation)
+            }, { ${JSON.stringify(r.readIdField)}: existing.id }, opts);`,
+          ]
+          : [
+            `        const body: Record<string, unknown> = { ${
+              JSON.stringify(r.readIdField)
+            }: existing.id };`,
+            ...r.syncForward.map((k) =>
+              `        if (g[${JSON.stringify(k)}] !== undefined) body[${
+                JSON.stringify(k)
+              }] = g[${JSON.stringify(k)}];`
+            ),
+            `        const result = await tryRead(${
+              JSON.stringify(ep.operation)
+            }, body, opts);`,
+          ]),
         `        if (result) {`,
         `          const handle = await context.writeResource("state", instanceName, result);`,
         `          return { dataHandles: [handle] };`,
@@ -1235,6 +1396,7 @@ function generateTest(
   type: string,
   file: string,
   methods: EmittedMethod[],
+  syncForward: string[],
 ): string {
   const cases = methods
     .filter((m) => m.kind !== "upload")
@@ -1255,16 +1417,23 @@ ${cases.join("\n")}
 
 const LISTS = new Set(["lookup", "list_action"]);
 
-function harness(reply: (operation: string) => unknown) {
+const SYNC_FORWARD: string[] = ${JSON.stringify(syncForward)};
+
+function harness(
+  reply: (operation: string) => unknown,
+  globalArgs: Record<string, unknown> = {},
+) {
   const calls: string[] = [];
+  const bodies: Record<string, unknown>[] = [];
   const written: Array<{ spec: string; name: string; data: any }> = [];
   const original = globalThis.fetch;
-  globalThis.fetch = ((url: string) => {
+  globalThis.fetch = ((url: string, init: RequestInit) => {
     calls.push(url);
+    bodies.push(JSON.parse(String(init.body ?? "{}")));
     return Promise.resolve(Response.json(reply(url.split("/").pop()!)));
   }) as typeof fetch;
   const context = {
-    globalArgs: { apiKey: "test-key" },
+    globalArgs: { apiKey: "test-key", ...globalArgs },
     modelType: ${JSON.stringify(type)},
     modelId: "m1",
     dataRepository: {
@@ -1275,7 +1444,7 @@ function harness(reply: (operation: string) => unknown) {
       return Promise.resolve({ name });
     },
   };
-  return { calls, written, context, restore: () => (globalThis.fetch = original) };
+  return { calls, bodies, written, context, restore: () => (globalThis.fetch = original) };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -1295,6 +1464,30 @@ for (const [method, operation, kind] of CASES) {
       assertEquals(h.written.length, out.dataHandles.length);
     } finally {
       h.restore();
+    }
+  });
+}
+
+// A read parameter configured on the model must reach sync's read
+// (keeb/swamp-ashby#1), and must not be sent when it is not configured.
+for (const field of SYNC_FORWARD) {
+  Deno.test(\`${type} sync sends the configured \${field}\`, async () => {
+    const ok = () => ({ success: true, results: { id: "x1" } });
+    const set = harness(ok, { [field]: true });
+    try {
+      await methods.sync.execute({}, set.context);
+      assertEquals(set.bodies[0][field], true);
+      // The stored id is still sent first, under the read endpoint's id field.
+      assertEquals(Object.values(set.bodies[0])[0], "x1");
+    } finally {
+      set.restore();
+    }
+    const unset = harness(ok);
+    try {
+      await methods.sync.execute({}, unset.context);
+      assertEquals(field in unset.bodies[0], false);
+    } finally {
+      unset.restore();
     }
   });
 }
@@ -1333,6 +1526,7 @@ function generateManifest(
   domain: string,
   files: string[],
   notes: string,
+  version: string,
 ): string {
   const d = DOMAINS[domain];
   const lines = [
@@ -1476,7 +1670,7 @@ const summary: string[] = [];
 for (const domain of Object.keys(DOMAINS)) {
   const dir = `${root}${domain}`;
   const modelsDir = `${dir}/extensions/models`;
-  await Deno.remove(dir, { recursive: true }).catch(() => {});
+  // Existing output is kept: it is what versions are compared against.
   await Deno.mkdir(`${modelsDir}/_lib`, { recursive: true });
 
   const resources = DOMAINS[domain].prefixes
@@ -1492,15 +1686,34 @@ for (const domain of Object.keys(DOMAINS)) {
   }
 
   const files: string[] = [];
+  const changed: string[] = [];
   const methodsByType = new Map<string, EmittedMethod[]>();
   for (const r of resources) {
     const type = `${EXTENSION_PREFIX}/${domain}/${r.slug}`;
     const file = `${r.slugId}.ts`;
-    const { source, methods } = generateModel(r);
+    const existing = await readIfExists(`${modelsDir}/${file}`);
+    const existingVersion = existing?.match(/\bversion: "([^"]+)"/)?.[1];
+    const existingUpgrades = existing ? parseUpgrades(existing) : [];
+    const candidate = generateModel(r, VERSION_PLACEHOLDER, existingUpgrades);
+    let generated = candidate;
+    if (!existing || !existingVersion) {
+      generated = generateModel(r, `${TODAY}.1`, []);
+      changed.push(r.slugId);
+    } else if (sameContent(await formatTs(candidate.source), existing)) {
+      generated = generateModel(r, existingVersion, existingUpgrades);
+    } else {
+      const version = nextVersion(existingVersion);
+      generated = generateModel(r, version, [
+        ...existingUpgrades,
+        { toVersion: version, description: CHANGE_NOTE },
+      ]);
+      changed.push(r.slugId);
+    }
+    const { source, methods } = generated;
     await Deno.writeTextFile(`${modelsDir}/${file}`, source);
     await Deno.writeTextFile(
       `${modelsDir}/${r.slugId}_test.ts`,
-      generateTest(type, file, methods),
+      generateTest(type, file, methods, r.syncForward),
     );
     files.push(file);
     methodsByType.set(type, methods);
@@ -1514,19 +1727,58 @@ for (const domain of Object.keys(DOMAINS)) {
     }
   }
 
+  // Drop model files for resources no longer generated.
+  const keep = new Set(
+    files.flatMap((f) => [f, f.replace(/\.ts$/, "_test.ts")]),
+  );
+  for (const e of Deno.readDirSync(modelsDir)) {
+    if (e.isFile && e.name.endsWith(".ts") && !keep.has(e.name)) {
+      await Deno.remove(`${modelsDir}/${e.name}`);
+      changed.push(e.name.replace(/(_test)?\.ts$/, ""));
+    }
+  }
+
+  const readme = generateReadme(domain, resources, methodsByType);
+  const libChanged = !sameContent(
+    await formatTs(libSource),
+    (await readIfExists(`${modelsDir}/_lib/ashby.ts`)) ?? "",
+  );
+  const readmeChanged = !sameContent(
+    await formatTs(readme, "md"),
+    (await readIfExists(`${dir}/README.md`)) ?? "",
+  );
   await Deno.writeTextFile(`${modelsDir}/_lib/ashby.ts`, libSource);
-  await Deno.writeTextFile(
-    `${dir}/manifest.yaml`,
-    generateManifest(
-      domain,
-      files,
-      `- Added: ${files.map((f) => f.replace(/\.ts$/, "")).join(", ")}`,
-    ),
-  );
-  await Deno.writeTextFile(
-    `${dir}/README.md`,
-    generateReadme(domain, resources, methodsByType),
-  );
+  await Deno.writeTextFile(`${dir}/README.md`, readme);
+
+  // The package version moves only when something it ships changed.
+  const existingManifest = await readIfExists(`${dir}/manifest.yaml`);
+  const manifestVersion = existingManifest?.match(/^version: "([^"]+)"/m)?.[1];
+  if (!existingManifest || !manifestVersion) {
+    await Deno.writeTextFile(
+      `${dir}/manifest.yaml`,
+      generateManifest(
+        domain,
+        files,
+        `- Added: ${files.map((f) => f.replace(/\.ts$/, "")).join(", ")}`,
+        `${TODAY}.1`,
+      ),
+    );
+  } else if (changed.length > 0 || libChanged || readmeChanged) {
+    const notes = [
+      ...(changed.length
+        ? [`- Updated: ${[...new Set(changed)].join(", ")}`]
+        : []),
+      ...(libChanged ? ["- Updated: shared _lib/ashby.ts"] : []),
+      ...(readmeChanged && !changed.length && !libChanged
+        ? ["- Updated: README"]
+        : []),
+      `- ${CHANGE_NOTE}`,
+    ].join("\n");
+    await Deno.writeTextFile(
+      `${dir}/manifest.yaml`,
+      generateManifest(domain, files, notes, nextVersion(manifestVersion)),
+    );
+  }
   await Deno.writeTextFile(`${dir}/LICENSE.txt`, licenseText);
   await Deno.writeTextFile(`${dir}/deno.json`, DENO_JSON);
 

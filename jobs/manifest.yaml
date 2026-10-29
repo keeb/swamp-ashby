@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with: deno task generate
 manifestVersion: 1
 name: "@keeb/ashby/jobs"
-version: "2026.10.29.1"
+version: "2026.10.29.2"
 description: "Ashby jobs and requisitions: jobs, job postings, openings, locations, departments, hiring teams, approvals, job boards and templates"
 repository: "https://github.com/keeb/swamp-ashby"
 license: MIT
@@ -14,7 +14,8 @@ labels:
   - openings
   - requisitions
 releaseNotes: |
-  - Added: job, job_posting, job_template, job_board, opening, location, department, hiring_team, hiring_team_role, approval, approval_definition, close_reason
+  - Updated: job, job_posting, opening, department
+  - sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so
 models:
   - approval.ts
   - approval_definition.ts

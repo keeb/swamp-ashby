@@ -10,16 +10,23 @@ const CASES: Array<[string, string, string]> = [
 
 const LISTS = new Set(["lookup", "list_action"]);
 
-function harness(reply: (operation: string) => unknown) {
+const SYNC_FORWARD: string[] = [];
+
+function harness(
+  reply: (operation: string) => unknown,
+  globalArgs: Record<string, unknown> = {},
+) {
   const calls: string[] = [];
+  const bodies: Record<string, unknown>[] = [];
   const written: Array<{ spec: string; name: string; data: any }> = [];
   const original = globalThis.fetch;
-  globalThis.fetch = ((url: string) => {
+  globalThis.fetch = ((url: string, init: RequestInit) => {
     calls.push(url);
+    bodies.push(JSON.parse(String(init.body ?? "{}")));
     return Promise.resolve(Response.json(reply(url.split("/").pop()!)));
   }) as typeof fetch;
   const context = {
-    globalArgs: { apiKey: "test-key" },
+    globalArgs: { apiKey: "test-key", ...globalArgs },
     modelType: "@keeb/ashby/jobs/close-reason",
     modelId: "m1",
     dataRepository: {
@@ -33,6 +40,7 @@ function harness(reply: (operation: string) => unknown) {
   };
   return {
     calls,
+    bodies,
     written,
     context,
     restore: () => (globalThis.fetch = original),
@@ -61,6 +69,30 @@ for (const [method, operation, kind] of CASES) {
       assertEquals(h.written.length, out.dataHandles.length);
     } finally {
       h.restore();
+    }
+  });
+}
+
+// A read parameter configured on the model must reach sync's read
+// (keeb/swamp-ashby#1), and must not be sent when it is not configured.
+for (const field of SYNC_FORWARD) {
+  Deno.test(`@keeb/ashby/jobs/close-reason sync sends the configured ${field}`, async () => {
+    const ok = () => ({ success: true, results: { id: "x1" } });
+    const set = harness(ok, { [field]: true });
+    try {
+      await methods.sync.execute({}, set.context);
+      assertEquals(set.bodies[0][field], true);
+      // The stored id is still sent first, under the read endpoint's id field.
+      assertEquals(Object.values(set.bodies[0])[0], "x1");
+    } finally {
+      set.restore();
+    }
+    const unset = harness(ok);
+    try {
+      await methods.sync.execute({}, unset.context);
+      assertEquals(field in unset.bodies[0], false);
+    } finally {
+      unset.restore();
     }
   });
 }

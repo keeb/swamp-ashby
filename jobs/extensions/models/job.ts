@@ -34,7 +34,7 @@ const GlobalArgsSchema = z.object({
     "The id of the default interview plan for this job. A job cannot be opened without a default interview plan.",
   ).optional(),
   jobTemplateId: z.string().nullable().describe(
-    "The id of the job template to use for this job. Only active job templates can be used to create a job.",
+    "The id of the job template to use for this job. Only active job templates can be used to create a job. Sent by create only; job.update does not accept it.",
   ).optional(),
   employmentType: z.enum([
     "FullTime",
@@ -46,10 +46,10 @@ const GlobalArgsSchema = z.object({
     "The employment type for the job. When omitted, inherits from the job template or defaults to FullTime.",
   ).optional(),
   brandId: z.string().nullable().describe(
-    "The id of the brand to use for this job",
+    "The id of the brand to use for this job. Sent by create only; job.update does not accept it.",
   ).optional(),
   customRequisitionId: z.string().nullable().describe(
-    "The new custom requisition id for the job. Pass `null` (together with another field to update) to clear the existing value.",
+    "The new custom requisition id for the job. Pass `null` (together with another field to update) to clear the existing value. Sent by update only; job.create does not accept it.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -139,7 +139,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby job. Registered at `@keeb/ashby/jobs/job`. */
 export const model = {
   type: "@keeb/ashby/jobs/job",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

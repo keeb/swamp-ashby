@@ -32,10 +32,10 @@ const GlobalArgsSchema = z.object({
     "The id of the department or team associated with the opening",
   ).optional(),
   locationIds: z.array(z.string()).nullable().describe(
-    "The ids of the locations associated with the opening",
+    "The ids of the locations associated with the opening. Sent by create only; opening.update does not accept it.",
   ).optional(),
   jobIds: z.array(z.string()).nullable().describe(
-    "The ids of the jobs associated with the opening",
+    "The ids of the jobs associated with the opening. Sent by create only; opening.update does not accept it.",
   ).optional(),
   targetHireDate: z.string().nullable().describe(
     "The date (in YYYY-MM-DD format) by which you intend to hire against this opening",
@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
   ]).nullable().describe("The employment type for this opening").optional(),
   openingState: z.enum(["Draft", "Approved", "Open", "Closed"]).nullable()
     .describe(
-      "The state the opening should be created in. Defaults to `Draft`. If not Draft, additional validation will be performed.",
+      "The state the opening should be created in. Defaults to `Draft`. If not Draft, additional validation will be performed. Sent by create only; opening.update does not accept it.",
     ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -134,7 +134,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby opening. Registered at `@keeb/ashby/jobs/opening`. */
 export const model = {
   type: "@keeb/ashby/jobs/opening",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

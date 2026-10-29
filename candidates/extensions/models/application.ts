@@ -25,16 +25,17 @@ import {
 
 const GlobalArgsSchema = z.object({
   candidateId: z.string().describe(
-    "The id of the candidate to consider for a job.",
+    "The id of the candidate to consider for a job. Sent by create only; application.update does not accept it.",
   ).optional(),
-  jobId: z.string().describe("The id of the job to consider the candidate for.")
-    .optional(),
+  jobId: z.string().describe(
+    "The id of the job to consider the candidate for. Sent by create only; application.update does not accept it.",
+  ).optional(),
   interviewPlanId: z.string().nullable().describe(
-    "The id of the interview plan to place the application in. If none is provided, the default interview plan is used.",
+    "The id of the interview plan to place the application in. If none is provided, the default interview plan is used. Sent by create only; application.update does not accept it.",
   ).optional(),
   interviewStageId: z.union([z.string(), z.literal("FirstPreInterviewScreen")])
     .nullable().describe(
-      'The interview stage of the interview plan to place the application in. If none is provided, the application is placed in the first "Lead" stage. You can also supply the special string "FirstPreInterviewScreen", which selects the first pre-interview-screen stage on the job\'s interview plan.',
+      'The interview stage of the interview plan to place the application in. If none is provided, the application is placed in the first "Lead" stage. You can also supply the special string "FirstPreInterviewScreen", which selects the first pre-interview-screen stage on the job\'s interview plan. Sent by create only; application.update does not accept it.',
     ).optional(),
   sourceId: z.string().nullable().describe(
     "The source to set on the application being created.",
@@ -52,10 +53,10 @@ const GlobalArgsSchema = z.object({
     applicationHistoryId: z.string().nullable().optional(),
     archiveReasonId: z.string().nullable().optional(),
   })).nullable().describe(
-    "An array of objects representing the application history. When provided, the application is created with the supplied history events.",
+    "An array of objects representing the application history. When provided, the application is created with the supplied history events. Sent by create only; application.update does not accept it.",
   ).optional(),
   sendNotifications: z.boolean().nullable().describe(
-    "Whether users subscribed to the application should be notified that the application was updated. Defaults to `true`.",
+    "Whether users subscribed to the application should be notified that the application was updated. Defaults to `true`. Sent by update only; application.create does not accept it.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -146,7 +147,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby application. Registered at `@keeb/ashby/candidates/application`. */
 export const model = {
   type: "@keeb/ashby/candidates/application",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

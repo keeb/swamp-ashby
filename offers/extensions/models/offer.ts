@@ -24,10 +24,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   offerProcessId: z.string().describe(
-    "The id of the offer process associated with the offer you're creating. This value is the id included in the response of the `offerProcess.start` API.",
+    "The id of the offer process associated with the offer you're creating. This value is the id included in the response of the `offerProcess.start` API. Sent by create only; offer.update does not accept it.",
   ).optional(),
   offerFormId: z.string().describe(
-    "The id of the form associated with the offer. This value is the id included in the response of the `offer.start` API.",
+    "The id of the form associated with the offer. This value is the id included in the response of the `offer.start` API. Sent by create only; offer.update does not accept it.",
   ).optional(),
   offerForm: z.object({
     fieldSubmissions: z.array(
@@ -35,7 +35,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe("The offer form submission").optional(),
   excludeFormDefinition: z.boolean().nullable().describe(
-    "If true, omit the form definition from the response.",
+    "If true, omit the form definition from the response. Also sent by sync.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -105,7 +105,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby offer. Registered at `@keeb/ashby/offers/offer`. */
 export const model = {
   type: "@keeb/ashby/offers/offer",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -336,7 +344,7 @@ export const model = {
     },
     sync: {
       description:
-        "Sync the stored offer from Ashby (offer.info); records status not_found when it is gone.",
+        "Sync the stored offer from Ashby (offer.info); records status not_found when it is gone. Sends the model's excludeFormDefinition too.",
       arguments: z.object({}),
       execute: async (_args: Record<string, any>, context: any) => {
         const g = context.globalArgs;
@@ -362,11 +370,11 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          "offer.info",
-          { "offerId": existing.id },
-          opts,
-        );
+        const body: Record<string, unknown> = { "offerId": existing.id };
+        if (g["excludeFormDefinition"] !== undefined) {
+          body["excludeFormDefinition"] = g["excludeFormDefinition"];
+        }
+        const result = await tryRead("offer.info", body, opts);
         if (result) {
           const handle = await context.writeResource(
             "state",

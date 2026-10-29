@@ -23,8 +23,9 @@ import {
 } from "./_lib/ashby.ts";
 
 const GlobalArgsSchema = z.object({
-  jobId: z.string().describe("The id of the job to create a posting for")
-    .optional(),
+  jobId: z.string().describe(
+    "The id of the job to create a posting for. Sent by create only; jobPosting.update does not accept it.",
+  ).optional(),
   title: z.string().describe(
     "The title for the new job posting. If omitted, defaults to the parent job's title.",
   ).optional(),
@@ -36,10 +37,10 @@ const GlobalArgsSchema = z.object({
     "The type of workplace",
   ).optional(),
   status: z.enum(["Draft", "Published"]).describe(
-    "The initial status of the job posting. Defaults to `Draft` if omitted. A description is required when creating a `Published` posting.",
+    "The initial status of the job posting. Defaults to `Draft` if omitted. A description is required when creating a `Published` posting. Sent by create only; jobPosting.update does not accept it.",
   ).optional(),
   isListed: z.boolean().describe(
-    "Whether the posting should be listed on the job board. Defaults to `true` and is forced to `false` when the parent job is confidential.",
+    "Whether the posting should be listed on the job board. Defaults to `true` and is forced to `false` when the parent job is confidential. Sent by create only; jobPosting.update does not accept it.",
   ).optional(),
   locationId: z.string().describe(
     "The id of the primary location for the job posting. If omitted, the posting inherits the parent job's location.",
@@ -51,21 +52,21 @@ const GlobalArgsSchema = z.object({
     "The id of the application form definition to use for the posting. If omitted, the organization default form is used.",
   ).optional(),
   suppressDescriptionOpening: z.boolean().nullable().describe(
-    "When true, the job description opening from the brand will be suppressed. descriptionOpening will be returned as null.",
+    "When true, the job description opening from the brand will be suppressed. descriptionOpening will be returned as null. Sent by update only; jobPosting.create does not accept it.",
   ).optional(),
   suppressDescriptionClosing: z.boolean().nullable().describe(
-    "When true, the job description closing from the brand will be suppressed. descriptionClosing will be returned as null.",
+    "When true, the job description closing from the brand will be suppressed. descriptionClosing will be returned as null. Sent by update only; jobPosting.create does not accept it.",
   ).optional(),
   applicationConfirmationEmailTemplateId: z.string().nullable().describe(
-    "The id of the email template to use for application confirmation emails on this posting. Pass `null` to clear the posting-level override and fall back to organization defaults.",
+    "The id of the email template to use for application confirmation emails on this posting. Pass `null` to clear the posting-level override and fall back to organization defaults. Sent by update only; jobPosting.create does not accept it.",
   ).optional(),
   jobBoardAssociations: z.array(
     z.object({ jobBoardId: z.string(), isListed: z.boolean() }),
   ).describe(
-    "A full replacement of the Ashby-hosted job boards associated with this posting. Pass an empty array to remove the posting from every Ashby-hosted job board. Omit to leave associations unchanged.",
+    "A full replacement of the Ashby-hosted job boards associated with this posting. Pass an empty array to remove the posting from every Ashby-hosted job board. Omit to leave associations unchanged. Sent by update only; jobPosting.create does not accept it.",
   ).optional(),
   includeUnpublishedJobPostings: z.boolean().nullable().describe(
-    "When true, allows updating unpublished (draft) job postings. Required when updating a draft posting.",
+    "When true, allows updating unpublished (draft) job postings. Required when updating a draft posting. Sent by update only; jobPosting.create does not accept it. Also sent by sync.",
   ).optional(),
   apiKey: z.string().meta({ sensitive: true }).describe(
     "Ashby API key, sent as the HTTP Basic username. Overrides the ASHBY_API_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -174,7 +175,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for an Ashby job posting. Registered at `@keeb/ashby/jobs/job-posting`. */
 export const model = {
   type: "@keeb/ashby/jobs/job-posting",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "sync now sends read parameters configured as global arguments (jobPosting includeUnpublishedJobPostings, offer excludeFormDefinition) instead of recording unpublished/filtered records as not_found; global arguments accepted by only create or only update now say so",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -431,7 +440,7 @@ export const model = {
     },
     sync: {
       description:
-        "Sync the stored job posting from Ashby (jobPosting.info); records status not_found when it is gone.",
+        "Sync the stored job posting from Ashby (jobPosting.info); records status not_found when it is gone. Sends the model's includeUnpublishedJobPostings too.",
       arguments: z.object({}),
       execute: async (_args: Record<string, any>, context: any) => {
         const g = context.globalArgs;
@@ -457,9 +466,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("jobPosting.info", {
-          "jobPostingId": existing.id,
-        }, opts);
+        const body: Record<string, unknown> = { "jobPostingId": existing.id };
+        if (g["includeUnpublishedJobPostings"] !== undefined) {
+          body["includeUnpublishedJobPostings"] =
+            g["includeUnpublishedJobPostings"];
+        }
+        const result = await tryRead("jobPosting.info", body, opts);
         if (result) {
           const handle = await context.writeResource(
             "state",
