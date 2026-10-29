@@ -1,0 +1,74 @@
+manifestVersion: 1
+name: "@keeb/ashby"
+version: "2026.10.29.1"
+license: MIT
+description: "Full coverage of the Ashby ATS public API: candidates, applications, jobs, postings, openings, interviews, offers, feedback, projects, sequences, surveys, reports, webhooks and org metadata. One model per Ashby resource, generated from Ashby's OpenAPI spec, with cursor pagination, incremental sync tokens, report polling and local file uploads handled for you."
+repository: https://github.com/keeb/swamp-ashby
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - hiring
+  - hr
+platforms: []
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+models:
+  - api_key.ts
+  - application.ts
+  - application_feedback.ts
+  - application_feedback_request.ts
+  - application_form.ts
+  - application_hiring_team_role.ts
+  - approval.ts
+  - approval_definition.ts
+  - archive_reason.ts
+  - assessment.ts
+  - audit_log.ts
+  - brand.ts
+  - candidate.ts
+  - candidate_tag.ts
+  - close_reason.ts
+  - communication_template.ts
+  - custom_field.ts
+  - department.ts
+  - email_sender.ts
+  - email_sync_blocked_address.ts
+  - feedback_form_definition.ts
+  - file.ts
+  - hiring_team.ts
+  - hiring_team_role.ts
+  - interview.ts
+  - interview_briefing.ts
+  - interview_event.ts
+  - interview_plan.ts
+  - interview_schedule.ts
+  - interview_stage.ts
+  - interview_stage_group.ts
+  - interviewer_pool.ts
+  - job.ts
+  - job_board.ts
+  - job_interview_plan.ts
+  - job_posting.ts
+  - job_template.ts
+  - location.ts
+  - notetaker_transcript.ts
+  - offer.ts
+  - offer_process.ts
+  - opening.ts
+  - project.ts
+  - referral.ts
+  - referral_form.ts
+  - report.ts
+  - sequence.ts
+  - sequence_template.ts
+  - source.ts
+  - source_tracking_link.ts
+  - survey_form_definition.ts
+  - survey_request.ts
+  - survey_submission.ts
+  - take_home_assignment.ts
+  - user.ts
+  - version.ts
+  - webhook.ts
