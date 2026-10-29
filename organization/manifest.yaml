@@ -1,0 +1,31 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/organization"
+version: "2026.10.29.1"
+description: "Ashby organization: users and interviewer settings, brands, custom fields, webhooks, reports, the audit log, API key info and API versions"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - users
+  - custom-fields
+  - webhooks
+  - reports
+  - admin
+releaseNotes: |
+  - Added: user, brand, custom_field, webhook, report, audit_log, api_key, version
+models:
+  - api_key.ts
+  - audit_log.ts
+  - brand.ts
+  - custom_field.ts
+  - report.ts
+  - user.ts
+  - version.ts
+  - webhook.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

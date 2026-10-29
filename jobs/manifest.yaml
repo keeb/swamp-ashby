@@ -1,0 +1,34 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/jobs"
+version: "2026.10.29.1"
+description: "Ashby jobs and requisitions: jobs, job postings, openings, locations, departments, hiring teams, approvals, job boards and templates"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - jobs
+  - postings
+  - openings
+  - requisitions
+releaseNotes: |
+  - Added: job, job_posting, job_template, job_board, opening, location, department, hiring_team, hiring_team_role, approval, approval_definition, close_reason
+models:
+  - approval.ts
+  - approval_definition.ts
+  - close_reason.ts
+  - department.ts
+  - hiring_team.ts
+  - hiring_team_role.ts
+  - job.ts
+  - job_board.ts
+  - job_posting.ts
+  - job_template.ts
+  - location.ts
+  - opening.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

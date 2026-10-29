@@ -1,0 +1,32 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/candidates"
+version: "2026.10.29.1"
+description: "Ashby candidates and applications: candidates, tags, applications and their history, feedback, application forms, referrals, assessments and file uploads"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - candidates
+  - applications
+  - referrals
+releaseNotes: |
+  - Added: candidate, candidate_tag, application, application_feedback, application_feedback_request, application_form, application_hiring_team_role, referral, referral_form, assessment, file
+models:
+  - application.ts
+  - application_feedback.ts
+  - application_feedback_request.ts
+  - application_form.ts
+  - application_hiring_team_role.ts
+  - assessment.ts
+  - candidate.ts
+  - candidate_tag.ts
+  - file.ts
+  - referral.ts
+  - referral_form.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

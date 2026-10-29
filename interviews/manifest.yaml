@@ -1,0 +1,33 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/interviews"
+version: "2026.10.29.1"
+description: "Ashby interviewing: interviews, interview plans and stages, schedules and events, briefings, interviewer pools, feedback forms, take-home assignments and notetaker transcripts"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - interviews
+  - scheduling
+  - feedback
+releaseNotes: |
+  - Added: interview, interview_plan, interview_stage, interview_stage_group, interview_schedule, interview_event, interview_briefing, interviewer_pool, job_interview_plan, feedback_form_definition, take_home_assignment, notetaker_transcript
+models:
+  - feedback_form_definition.ts
+  - interview.ts
+  - interview_briefing.ts
+  - interview_event.ts
+  - interview_plan.ts
+  - interview_schedule.ts
+  - interview_stage.ts
+  - interview_stage_group.ts
+  - interviewer_pool.ts
+  - job_interview_plan.ts
+  - notetaker_transcript.ts
+  - take_home_assignment.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

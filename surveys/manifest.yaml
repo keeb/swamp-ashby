@@ -1,0 +1,23 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/surveys"
+version: "2026.10.29.1"
+description: "Ashby surveys: survey form definitions, survey requests and survey submissions"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - surveys
+  - candidate-experience
+releaseNotes: |
+  - Added: survey_form_definition, survey_request, survey_submission
+models:
+  - survey_form_definition.ts
+  - survey_request.ts
+  - survey_submission.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

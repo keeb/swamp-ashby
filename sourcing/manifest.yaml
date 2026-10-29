@@ -1,0 +1,31 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/sourcing"
+version: "2026.10.29.1"
+description: "Ashby sourcing: projects, outreach sequences and templates, sources and tracking links, email senders, the email sync blocklist, communication templates and archive reasons"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - sourcing
+  - outreach
+  - sequences
+  - projects
+releaseNotes: |
+  - Added: project, sequence, sequence_template, source, source_tracking_link, email_sender, email_sync_blocked_address, communication_template, archive_reason
+models:
+  - archive_reason.ts
+  - communication_template.ts
+  - email_sender.ts
+  - email_sync_blocked_address.ts
+  - project.ts
+  - sequence.ts
+  - sequence_template.ts
+  - source.ts
+  - source_tracking_link.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

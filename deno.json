@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "fetch-spec": "deno run --allow-net=developers.ashbyhq.com --allow-read=. --allow-write=spec codegen/fetch-spec.ts",
+    "generate": "deno fmt codegen && deno run --allow-read --allow-write codegen/generate.ts && deno fmt candidates jobs interviews offers sourcing surveys organization",
+    "test": "deno test --allow-read --allow-write=/tmp --allow-env codegen candidates jobs interviews offers sourcing surveys organization"
+  },
+  "lint": { "rules": { "exclude": ["no-import-prefix"] } },
+  "imports": { "zod": "npm:zod@4.3.6" }
+}

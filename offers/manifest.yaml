@@ -1,0 +1,22 @@
+# Auto-generated manifest. Re-generate with: deno task generate
+manifestVersion: 1
+name: "@keeb/ashby/offers"
+version: "2026.10.29.1"
+description: "Ashby offers: offer processes, offer versions, approvals and decisions"
+repository: "https://github.com/keeb/swamp-ashby"
+license: MIT
+labels:
+  - ashby
+  - ats
+  - recruiting
+  - offers
+  - approvals
+releaseNotes: |
+  - Added: offer, offer_process
+models:
+  - offer.ts
+  - offer_process.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
